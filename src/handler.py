@@ -73,6 +73,6 @@ def is_allowed(sender):
 
     response = dynamodb.get_item(
         TableName=ALLOWED_EMAIL_TABLE,
-        Key={"hash_key": {"S": email_hash}},
+        Key={"hash_key": {"S": email_hash}, "range_key": {"S": "i"}},
     )
     return "Item" in response
