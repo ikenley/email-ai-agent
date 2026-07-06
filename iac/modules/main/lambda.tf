@@ -1,12 +1,14 @@
-# #-------------------------------------------------------------------------------
-# # Lambda Function which handle ai image generation.
-# #-------------------------------------------------------------------------------
+#-------------------------------------------------------------------------------
+# Lambda Function which handles the inbound email -> agent -> reply loop.
+#-------------------------------------------------------------------------------
 
 locals {
   email_agent_id = "${local.id}-lambda"
+
+  allowed_email_table_arn = "arn:aws:dynamodb:${local.aws_region}:${local.account_id}:table/${var.allowed_email_addresses_dynamo_table_name}"
 }
 
-resource "aws_ecr_repository" "email_agent" { # TODO change to email_agent
+resource "aws_ecr_repository" "email_agent" {
   name                 = local.email_agent_id
   image_tag_mutability = "MUTABLE"
 
@@ -40,29 +42,22 @@ EOF
 
 resource "aws_lambda_function" "email_agent" {
   function_name = local.email_agent_id
-  description   = "${local.email_agent_id} AI storybook generation"
+  description   = "${local.email_agent_id} inbound email AI agent"
   role          = aws_iam_role.email_agent.arn
 
-  # Placeholder image uri
+  # Placeholder image uri; the real image is pushed by src/build_and_push.sh
   image_uri    = "924586450630.dkr.ecr.us-east-1.amazonaws.com/ik-dev-storybook-lambda:20260226"
   package_type = "Image"
 
-  # image_config {
-  #   command = var.lambda_image_command
-  # }
-
   timeout     = 300 # 5 minutes
-  memory_size = 2048
+  memory_size = 1024
 
   environment {
     variables = {
-      DATA_LAKE_S3_BUCKET_NAME       = data.aws_ssm_parameter.data_lake_s3_bucket_name.value
-      DATA_LAKE_S3_BUCKET_KEY_PREFIX = local.id
-      STATIC_S3_BUCKET_NAME          = data.aws_ssm_parameter.static_s3_bucket_name.value
-      STATIC_S3_BUCKET_KEY_PREFIX    = local.id
-      CDN_DOMAIN                     = data.aws_ssm_parameter.static_s3_bucket_name.value
-      FROM_EMAIL_ADDRESS             = var.ses_email_address
-      GEMINI_API_KEY                 = var.gemini_api_key
+      INBOUND_MAIL_BUCKET = aws_s3_bucket.inbound_mail.id
+      ALLOWED_EMAIL_TABLE = var.allowed_email_addresses_dynamo_table_name
+      BEDROCK_MODEL_ID    = var.bedrock_model_id
+      AGENT_EMAIL_ADDRESS = var.inbound_email_address
     }
   }
 
@@ -71,11 +66,20 @@ resource "aws_lambda_function" "email_agent" {
     security_group_ids = [aws_security_group.email_agent.id]
   }
 
-  # lifecycle {
-  #   ignore_changes = [
-  #     image_uri
-  #   ]
-  # }
+  lifecycle {
+    ignore_changes = [
+      image_uri
+    ]
+  }
+
+  tags = local.tags
+}
+
+# SES invokes the Lambda asynchronously; without this, a failure after the
+# Bedrock call would retry the whole email and could send duplicate replies.
+resource "aws_lambda_function_event_invoke_config" "email_agent" {
+  function_name          = aws_lambda_function.email_agent.function_name
+  maximum_retry_attempts = 0
 }
 
 resource "aws_iam_role" "email_agent" {
@@ -132,39 +136,34 @@ resource "aws_iam_policy" "email_agent" {
         "Resource" : "*"
       },
       {
-        "Sid" : "ListObjectsInBucket",
+        "Sid" : "ReadInboundMail",
         "Effect" : "Allow",
-        "Action" : ["s3:ListBucket"],
-        "Resource" : [
-          "${data.aws_ssm_parameter.data_lake_s3_bucket_arn.value}",
-          "${data.aws_ssm_parameter.static_s3_bucket_arn.value}"
-        ]
+        "Action" : ["s3:GetObject"],
+        "Resource" : "${aws_s3_bucket.inbound_mail.arn}/inbound/*"
       },
       {
-        "Sid" : "S3ReadWrite",
+        "Sid" : "ReadAllowedEmailAddresses",
+        "Effect" : "Allow",
+        "Action" : ["dynamodb:GetItem"],
+        "Resource" : local.allowed_email_table_arn
+      },
+      {
+        "Sid" : "Bedrock",
         "Effect" : "Allow",
         "Action" : [
-          "s3:GetObject",
-          "s3:PutObject"
+          "bedrock:InvokeModel",
+          "bedrock:InvokeModelWithResponseStream"
         ],
-        "Resource" : [
-          "${data.aws_ssm_parameter.data_lake_s3_bucket_arn.value}/${local.id}/*",
-          "${data.aws_ssm_parameter.static_s3_bucket_arn.value}/${local.id}/*"
-        ]
+        "Resource" : "*"
       },
       {
-        Sid = "Bedrock"
-        Action = [
-          "bedrock:InvokeModel"
-        ]
-        Effect   = "Allow"
-        Resource = "*"
-      },
-      {
-        Sid : "AllowSendEmail",
-        Effect   = "Allow"
-        Action   = ["ses:SendEmail"]
-        Resource = "arn:aws:ses:us-east-1:924586450630:identity/ikenley.com"
+        "Sid" : "AllowSendEmail",
+        "Effect" : "Allow",
+        "Action" : [
+          "ses:SendEmail",
+          "ses:SendRawEmail"
+        ],
+        "Resource" : aws_ses_domain_identity.inbound.arn
       }
     ]
   })

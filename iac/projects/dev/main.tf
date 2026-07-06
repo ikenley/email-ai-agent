@@ -30,7 +30,9 @@ module "main" {
   env       = "dev"
   is_prod   = false
 
+  inbound_domain        = var.inbound_domain
   inbound_email_address = var.inbound_email_address
+  route53_zone_name     = var.route53_zone_name
 
   allowed_email_addresses_dynamo_table_name = var.allowed_email_addresses_dynamo_table_name
 }
