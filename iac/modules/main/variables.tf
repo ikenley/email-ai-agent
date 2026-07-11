@@ -17,6 +17,19 @@ variable "is_prod" {
   type        = bool
 }
 
+# CodeBuild
+
+variable "source_repository_url" {
+  description = "HTTPS clone URL of the GitHub repository"
+  type        = string
+}
+
+variable "git_branch" {
+  description = "Git branch to build"
+  type        = string
+  default     = "main"
+}
+
 # SES
 
 variable "inbound_domain" {

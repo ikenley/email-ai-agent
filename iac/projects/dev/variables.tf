@@ -1,3 +1,8 @@
+
+variable "source_repository_url" {
+  type = string
+}
+
 variable "inbound_domain" {
   type = string
 }

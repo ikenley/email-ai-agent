@@ -28,7 +28,15 @@ silently dropped.
    terraform init && terraform apply
    ```
 
-2. Build and push the Lambda image:
+2. Build and push the Lambda image via CodeBuild (builds `src/buildspec.yml`
+   from the `main` branch, so commit and push first):
+
+   ```sh
+   aws codebuild start-build --project-name ik-dev-email-ai-agent-build \
+     --region us-east-1 --profile terraform-dev
+   ```
+
+   Or build locally instead:
 
    ```sh
    ./src/build_and_push.sh
@@ -41,3 +49,9 @@ silently dropped.
 4. Email `agent@aimail.ikenley.com`.
 
 Logs: CloudWatch log group `/aws/lambda/ik-dev-email-ai-agent-lambda`.
+
+---
+
+## New Foundational Models
+
+If you ever switch bedrock_model_id to a different model family (e.g., Sonnet 4.6), you'll hit the same error once — each model needs this one-time agreement. Same two commands: list-foundation-model-agreement-offers for the token, then create-foundation-model-agreement
