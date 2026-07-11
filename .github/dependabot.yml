@@ -1,0 +1,12 @@
+version: 2
+updates:
+  - package-ecosystem: "docker"
+    directories:
+      - "/src"
+    schedule:
+      interval: "weekly"
+  - package-ecosystem: "pip"
+    directories:
+      - "/src"
+    schedule:
+      interval: "weekly"

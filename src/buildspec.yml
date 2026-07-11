@@ -1,0 +1,27 @@
+version: 0.2
+
+# Replicates src/build_and_push.sh in CodeBuild: build the Lambda image,
+# push it to ECR, and point the function at it.
+# ECR_REPO_URL and FUNCTION_NAME are injected by Terraform (codebuild.tf).
+
+phases:
+  pre_build:
+    commands:
+      - REGISTRY="${ECR_REPO_URL%%/*}"
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" |
+        docker login --username AWS --password-stdin "$REGISTRY"
+      # git short sha as the image tag; fall back to a timestamp
+      - TAG="$(echo "$CODEBUILD_RESOLVED_SOURCE_VERSION" | cut -c1-7)"
+      - '[ -n "$TAG" ] || TAG="$(date +%Y%m%d%H%M%S)"'
+      - IMAGE_URI="$ECR_REPO_URL:$TAG"
+  build:
+    commands:
+      # --provenance=false keeps buildx from producing a multi-manifest
+      # image, which Lambda rejects.
+      - docker build --platform linux/amd64 --provenance=false -t "$IMAGE_URI" src
+  post_build:
+    commands:
+      - docker push "$IMAGE_URI"
+      - aws lambda update-function-code --function-name "$FUNCTION_NAME" --image-uri "$IMAGE_URI" > /dev/null
+      - aws lambda wait function-updated --function-name "$FUNCTION_NAME"
+      - echo "Deployed $IMAGE_URI"
