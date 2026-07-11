@@ -26,6 +26,6 @@ jobs:
       - name: Start CodeBuild Project
         run: |
           aws codebuild start-build \
-            --project-name ik-dev-ai-codebuild-main \
+            --project-name ik-dev-email-ai-agent-build \
             --source-version ${{ github.sha }} \
             --environment-variables-override name=TERRAFORM_ACTION,value=apply,type=PLAINTEXT
