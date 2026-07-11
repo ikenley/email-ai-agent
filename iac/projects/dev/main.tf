@@ -31,7 +31,7 @@ module "main" {
   is_prod   = false
 
   source_repository_url = var.source_repository_url
-  git_branch            = "cicd" # "main"
+  git_branch            = "main"
 
   inbound_domain        = var.inbound_domain
   inbound_email_address = var.inbound_email_address
