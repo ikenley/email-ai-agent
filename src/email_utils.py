@@ -25,6 +25,36 @@ def _strip_html(markup):
     return re.sub(r"\n{3,}", "\n\n", text).strip()
 
 
+def thread_root_id(message):
+    """Return the Message-ID of the first message in the thread.
+
+    Replies carry the whole chain in References (build_reply below appends to
+    it), so the first entry is the thread root; a fresh message is its own
+    root.
+    """
+    references = (message.get("References", "") or "").split()
+    if references:
+        return references[0]
+    return message.get("In-Reply-To") or message.get("Message-ID", "")
+
+
+def strip_quoted_text(body):
+    """Remove quoted reply text, keeping only the sender's new message.
+
+    Prior turns are replayed from session memory, so the quoted copy would
+    duplicate conversation history.
+    """
+    lines = []
+    for line in body.splitlines():
+        if line.lstrip().startswith(">"):
+            continue
+        # Attribution line introducing the quote, e.g. "On Sat, Jul 11 ... wrote:"
+        if re.match(r"On .*wrote:\s*$", line.strip(), flags=re.DOTALL):
+            break
+        lines.append(line)
+    return "\n".join(lines).strip()
+
+
 def build_reply(original, reply_text, from_address, to_address):
     """Build a reply that threads under the original message in mail clients."""
     reply = EmailMessage()

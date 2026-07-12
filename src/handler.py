@@ -1,13 +1,15 @@
 """Entry point for the SES-triggered email AI agent."""
 
+import hashlib
 import logging
 import os
+import re
 from email.utils import parseaddr
 
 import boto3
 
 from agent import run_agent
-from email_utils import build_reply, extract_plaintext
+from email_utils import build_reply, extract_plaintext, strip_quoted_text, thread_root_id
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
@@ -40,12 +42,19 @@ def lambda_handler(event, context):
 
     raw = s3.get_object(Bucket=INBOUND_MAIL_BUCKET, Key=f"inbound/{message_id}")["Body"].read()
     original, body = extract_plaintext(raw)
+    body = strip_quoted_text(body)
     if not body.strip():
         logger.info("Dropping %s: no readable text body", message_id)
         return
 
-    logger.info("Running agent for %s (%d chars)", sender, len(body))
-    reply_text = run_agent(body)
+    # AgentCore Memory identities: actor = sender (allows [a-zA-Z0-9-_/:]),
+    # session = email thread (allows [a-zA-Z0-9-_], max 100 chars, so hash the
+    # root Message-ID).
+    actor_id = re.sub(r"[^a-zA-Z0-9\-_/]", "_", sender)
+    session_id = hashlib.sha256(thread_root_id(original).encode()).hexdigest()
+
+    logger.info("Running agent for %s (%d chars, session %s)", sender, len(body), session_id[:12])
+    reply_text = run_agent(body, actor_id=actor_id, session_id=session_id)
 
     reply = build_reply(
         original,
