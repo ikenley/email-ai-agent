@@ -36,15 +36,17 @@ def run_agent(prompt: str, actor_id: str, session_id: str) -> str:
         },
     )
 
-    with AgentCoreMemorySessionManager(
+    # bedrock-agentcore 0.1.x writes each message through synchronously and is
+    # not a context manager; there is no buffer to flush.
+    session_manager = AgentCoreMemorySessionManager(
         agentcore_memory_config=memory_config,
         region_name=os.environ["AWS_REGION"],
-    ) as session_manager:
-        agent = Agent(
-            model=model,
-            system_prompt=SYSTEM_PROMPT,
-            callback_handler=None,
-            session_manager=session_manager,
-        )
-        result = agent(prompt)
+    )
+    agent = Agent(
+        model=model,
+        system_prompt=SYSTEM_PROMPT,
+        callback_handler=None,
+        session_manager=session_manager,
+    )
+    result = agent(prompt)
     return str(result)
