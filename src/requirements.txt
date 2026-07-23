@@ -1,2 +1,2 @@
-strands-agents>=1.47.0,<2
+strands-agents>=1.48.0,<2
 bedrock-agentcore>=0.1.0,<1
