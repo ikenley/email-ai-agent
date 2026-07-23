@@ -58,6 +58,7 @@ resource "aws_lambda_function" "email_agent" {
       ALLOWED_EMAIL_TABLE = var.allowed_email_addresses_dynamo_table_name
       BEDROCK_MODEL_ID    = var.bedrock_model_id
       AGENT_EMAIL_ADDRESS = var.inbound_email_address
+      AGENTCORE_MEMORY_ID = aws_bedrockagentcore_memory.email_agent.id
     }
   }
 
@@ -155,6 +156,22 @@ resource "aws_iam_policy" "email_agent" {
           "bedrock:InvokeModelWithResponseStream"
         ],
         "Resource" : "*"
+      },
+      {
+        "Sid" : "AgentCoreMemory",
+        "Effect" : "Allow",
+        "Action" : [
+          "bedrock-agentcore:CreateEvent",
+          "bedrock-agentcore:ListEvents",
+          "bedrock-agentcore:GetEvent",
+          "bedrock-agentcore:RetrieveMemoryRecords",
+          "bedrock-agentcore:ListMemoryRecords",
+          "bedrock-agentcore:GetMemoryRecord"
+        ],
+        "Resource" : [
+          aws_bedrockagentcore_memory.email_agent.arn,
+          "${aws_bedrockagentcore_memory.email_agent.arn}/*"
+        ]
       },
       {
         "Sid" : "AllowSendEmail",
