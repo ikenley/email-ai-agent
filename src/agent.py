@@ -1,6 +1,7 @@
-"""Strands agent wrapper around Bedrock with AgentCore Memory."""
+"""Strands agent wrapper around the Anthropic API with AgentCore Memory."""
 
 import os
+from functools import cache
 
 from bedrock_agentcore.memory.integrations.strands.config import (
     AgentCoreMemoryConfig,
@@ -10,7 +11,9 @@ from bedrock_agentcore.memory.integrations.strands.session_manager import (
     AgentCoreMemorySessionManager,
 )
 from strands import Agent
-from strands.models import BedrockModel
+from strands.models.anthropic import AnthropicModel
+
+from config import get_config
 
 SYSTEM_PROMPT = (
     "You are a helpful assistant that chats over email. "
@@ -21,9 +24,18 @@ SYSTEM_PROMPT = (
 )
 
 
-def run_agent(prompt: str, actor_id: str, session_id: str) -> str:
-    model = BedrockModel(model_id=os.environ["BEDROCK_MODEL_ID"])
+@cache
+def _get_model() -> AnthropicModel:
+    """Build the model once per execution environment so warm invocations
+    reuse the underlying HTTP client and its connection pool."""
+    return AnthropicModel(
+        client_args={"api_key": get_config()["ANTHROPIC_API_KEY"]},
+        model_id=os.environ["MODEL_ID"],
+        max_tokens=16384,
+    )
 
+
+def run_agent(prompt: str, actor_id: str, session_id: str) -> str:
     # Namespaces must match the strategy namespaces in
     # iac/modules/main/agentcore.tf.
     memory_config = AgentCoreMemoryConfig(
@@ -43,7 +55,7 @@ def run_agent(prompt: str, actor_id: str, session_id: str) -> str:
         region_name=os.environ["AWS_REGION"],
     )
     agent = Agent(
-        model=model,
+        model=_get_model(),
         system_prompt=SYSTEM_PROMPT,
         callback_handler=None,
         session_manager=session_manager,

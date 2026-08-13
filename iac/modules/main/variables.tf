@@ -54,8 +54,8 @@ variable "allowed_email_addresses_dynamo_table_name" {
 
 # Agent
 
-variable "bedrock_model_id" {
+variable "model_id" {
   description = "Bedrock model id used by the Strands agent"
   type        = string
-  default     = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
+  default     = "claude-sonnet-5"
 }

@@ -56,9 +56,13 @@ resource "aws_lambda_function" "email_agent" {
     variables = {
       INBOUND_MAIL_BUCKET = aws_s3_bucket.inbound_mail.id
       ALLOWED_EMAIL_TABLE = var.allowed_email_addresses_dynamo_table_name
-      BEDROCK_MODEL_ID    = var.bedrock_model_id
+      MODEL_ID            = var.model_id
       AGENT_EMAIL_ADDRESS = var.inbound_email_address
       AGENTCORE_MEMORY_ID = aws_bedrockagentcore_memory.email_agent.id
+
+      # Config SSM parameter name which stores sensitve values
+      # Read at runtime by the Lambda function
+      CONFIG_SSM_PARAM_NAME = aws_ssm_parameter.lambda_config.name
     }
   }
 
@@ -181,7 +185,30 @@ resource "aws_iam_policy" "email_agent" {
           "ses:SendRawEmail"
         ],
         "Resource" : aws_ses_domain_identity.inbound.arn
-      }
+      },
+      {
+        "Sid" : "GetSSMParams",
+        "Effect" : "Allow",
+        "Action" : [
+          "ssm:GetParameter"
+        ],
+        "Resource" : aws_ssm_parameter.lambda_config.arn
+      },
+      {
+        # Required to read the SecureString above; scoped so the key can only
+        # be used through SSM.
+        "Sid" : "DecryptSSMParams",
+        "Effect" : "Allow",
+        "Action" : [
+          "kms:Decrypt"
+        ],
+        "Resource" : "*",
+        "Condition" : {
+          "StringEquals" : {
+            "kms:ViaService" : "ssm.${local.aws_region}.amazonaws.com"
+          }
+        }
+      },
     ]
   })
 }
@@ -203,4 +230,21 @@ resource "aws_security_group_rule" "email_agent_egress_https" {
   to_port           = 443
   protocol          = "tcp"
   cidr_blocks       = ["0.0.0.0/0"]
+}
+
+
+#------------------------------------------------------------------------------
+# Lambda config SSM parameter for sensitive values
+#------------------------------------------------------------------------------
+resource "aws_ssm_parameter" "lambda_config" {
+  name      = "${local.output_prefix}/lambda_config"
+  type      = "SecureString"
+  overwrite = true
+  value = jsonencode({
+    "ANTHROPIC_API_KEY" : "TODO"
+  })
+
+  lifecycle {
+    ignore_changes = [value]
+  }
 }
