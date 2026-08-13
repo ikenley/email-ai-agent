@@ -54,4 +54,4 @@ Logs: CloudWatch log group `/aws/lambda/ik-dev-email-ai-agent-lambda`.
 
 ## New Foundational Models
 
-If you ever switch bedrock_model_id to a different model family (e.g., Sonnet 4.6), you'll hit the same error once — each model needs this one-time agreement. Same two commands: list-foundation-model-agreement-offers for the token, then create-foundation-model-agreement
+If you ever switch model_id to a different model family (e.g., Sonnet 4.6), you'll hit the same error once — each model needs this one-time agreement. Same two commands: list-foundation-model-agreement-offers for the token, then create-foundation-model-agreement
