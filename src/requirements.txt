@@ -1,4 +1,4 @@
 strands-agents[anthropic]>=1.47.0,<2
 # >=1.21 required: 0.1.x injects retrieved memory as a trailing *assistant*
 # message, which Claude 4.6+ rejects as an assistant prefill.
-bedrock-agentcore>=1.21.0,<2
+bedrock-agentcore>=1.22.0,<2
