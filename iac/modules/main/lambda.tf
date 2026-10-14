@@ -241,7 +241,7 @@ resource "aws_ssm_parameter" "lambda_config" {
   type      = "SecureString"
   overwrite = true
   value = jsonencode({
-    "ANTHROPIC_API_KEY" : "TODO"
+    "OPENROUTER_API_KEY" : "TODO"
   })
 
   lifecycle {

@@ -1,4 +1,4 @@
-"""Strands agent wrapper around the Anthropic API with AgentCore Memory."""
+"""Strands agent wrapper around OpenRouter with AgentCore Memory."""
 
 import os
 from functools import cache
@@ -11,9 +11,11 @@ from bedrock_agentcore.memory.integrations.strands.session_manager import (
     AgentCoreMemorySessionManager,
 )
 from strands import Agent
-from strands.models.anthropic import AnthropicModel
+from strands.models.openai import OpenAIModel
 
 from config import get_config
+
+OPENROUTER_BASE_URL = "https://openrouter.ai/api/v1"
 
 SYSTEM_PROMPT = (
     "You are a helpful assistant that chats over email. "
@@ -25,13 +27,16 @@ SYSTEM_PROMPT = (
 
 
 @cache
-def _get_model() -> AnthropicModel:
+def _get_model() -> OpenAIModel:
     """Build the model once per execution environment so warm invocations
     reuse the underlying HTTP client and its connection pool."""
-    return AnthropicModel(
-        client_args={"api_key": get_config()["ANTHROPIC_API_KEY"]},
+    return OpenAIModel(
+        client_args={
+            "api_key": get_config()["OPENROUTER_API_KEY"],
+            "base_url": OPENROUTER_BASE_URL,
+        },
         model_id=os.environ["MODEL_ID"],
-        max_tokens=16384,
+        params={"max_tokens": 16384},
     )
 
 
