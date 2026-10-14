@@ -55,7 +55,7 @@ variable "allowed_email_addresses_dynamo_table_name" {
 # Agent
 
 variable "model_id" {
-  description = "Bedrock model id used by the Strands agent"
+  description = "OpenRouter model id used by the Strands agent"
   type        = string
-  default     = "claude-sonnet-5"
+  default     = "anthropic/claude-opus-5.5"
 }
